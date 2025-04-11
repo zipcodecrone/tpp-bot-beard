@@ -100,6 +100,16 @@ impl CardDatum {
         let mut embed = serenity::CreateEmbed::new()
             .title(self.name.clone())
             .description(self.desc.clone())
+            .footer(
+                serenity::CreateEmbedFooter::new("The Plunder Pirates")
+                    .icon_url("https://theplunderpirates.cc/icon/apple-touch-icon.png"),
+            )
+            .url({
+                let mut url =
+                    reqwest::Url::parse("https://theplunderpirates.cc").expect("must be valid");
+                url.set_query(Some(&format!("current_card={}", self.name)));
+                url.to_string()
+            })
             .color(match &self.frame_type[..] {
                 "effect" => serenity::Color::ORANGE,
                 "fusion" => serenity::Color::PURPLE,
