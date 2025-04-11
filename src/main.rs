@@ -81,6 +81,11 @@ struct Data {
 }
 
 static DISALLOWED_CHARACTERS: OnceLock<Regex> = OnceLock::new();
+fn disallowed_characters() -> &'static Regex {
+    DISALLOWED_CHARACTERS.get_or_init(|| {
+        Regex::new(r#"[?/'!,:&."]"#).expect("Cannot compile disallowed characters re")
+    })
+}
 
 static WHITESPACE: OnceLock<Regex> = OnceLock::new();
 fn ws() -> &'static Regex {
@@ -89,11 +94,7 @@ fn ws() -> &'static Regex {
 
 impl CardDatum {
     fn make_embed(&self) -> serenity::CreateEmbed {
-        let removed_disallowed = DISALLOWED_CHARACTERS
-            .get_or_init(|| {
-                Regex::new(r#"[?/'!,:&."]"#).expect("Cannot compile disallowed characters re")
-            })
-            .replace_all(&self.name, "_");
+        let removed_disallowed = disallowed_characters().replace_all(&self.name, "_");
         let formatted_name = ws().replace_all(&removed_disallowed, "%20");
         let img_url = format!("{IMG_BASE}{formatted_name}.jpg");
         let mut embed = serenity::CreateEmbed::new()
@@ -145,25 +146,33 @@ impl CardDatum {
     }
 }
 
+fn normalize_search_term(term: &str) -> String {
+    disallowed_characters()
+        .replace_all(term, "_")
+        .to_lowercase()
+}
+
 impl Data {
-    async fn filter_cards(&self, title: Option<&str>, effect: Option<&str>) -> Vec<CardDatum> {
+    async fn filter_cards(&self, name: Option<&str>, effect: Option<&str>) -> Vec<CardDatum> {
         let cards = self.cards.get().await;
-        let title = title.unwrap_or_default().to_lowercase();
-        let effect = effect.unwrap_or_default().to_lowercase();
+        let name = normalize_search_term(name.unwrap_or_default());
+        let effect = normalize_search_term(effect.unwrap_or_default());
 
         cards
             .iter()
             .filter(|card| {
-                for word in ws().split(&title) {
-                    if !card.name.to_lowercase().contains(word) {
+                let card_name = normalize_search_term(&card.name);
+                for term in name.split("*") {
+                    if !card_name.contains(term.trim()) {
                         return false;
                     }
                 }
                 true
             })
             .filter(|card| {
-                for word in ws().split(&effect) {
-                    if !card.desc.to_lowercase().contains(word) {
+                let card_desc = normalize_search_term(&card.desc);
+                for term in effect.split("*") {
+                    if !card_desc.contains(term.trim()) {
                         return false;
                     }
                 }
@@ -175,10 +184,10 @@ impl Data {
 
     async fn get_reply(
         &self,
-        search_title: Option<&str>,
+        card_name: Option<&str>,
         effect: Option<&str>,
     ) -> Result<serenity::CreateEmbed, anyhow::Error> {
-        let mut cards = self.filter_cards(search_title, effect).await;
+        let mut cards = self.filter_cards(card_name, effect).await;
         cards.sort_by(|a, b| a.name.cmp(&b.name));
 
         Ok(match cards.len() {
