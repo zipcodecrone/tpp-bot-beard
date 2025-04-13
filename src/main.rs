@@ -267,6 +267,7 @@ async fn autocomplete_search(ctx: Context<'_>, partial: &str) -> Vec<String> {
 }
 
 #[poise::command(slash_command)]
+/// Search for a card in the TPP format. Separate search terms with *.
 async fn search(
     ctx: Context<'_>,
     #[description = "Card Name"]
@@ -286,6 +287,7 @@ async fn search(
 }
 
 #[poise::command(slash_command)]
+/// Verify that the provided deck is valid in the TPP format.
 async fn check_deck(
     ctx: Context<'_>,
     #[description = "Deck URL in the format https://www.duelingbook.com/deck?id=<id>"] url: String,
