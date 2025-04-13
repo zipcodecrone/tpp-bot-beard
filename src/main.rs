@@ -234,17 +234,19 @@ async fn event_handler(
             .strip_prefix("<")
             .and_then(|msg| msg.strip_suffix(">"))
         {
-            let builder = CreateMessage::new()
-                .add_embed(data.get_reply(Some(msg), None).await?)
-                .reference_message(new_message)
-                .allowed_mentions(
-                    CreateAllowedMentions::new()
-                        .replied_user(false)
-                        .everyone(true)
-                        .all_users(true)
-                        .all_roles(true),
-                );
-            new_message.channel_id.send_message(ctx, builder).await?;
+            if !msg.starts_with("@") {
+                let builder = CreateMessage::new()
+                    .add_embed(data.get_reply(Some(msg), None).await?)
+                    .reference_message(new_message)
+                    .allowed_mentions(
+                        CreateAllowedMentions::new()
+                            .replied_user(false)
+                            .everyone(true)
+                            .all_users(true)
+                            .all_roles(true),
+                    );
+                new_message.channel_id.send_message(ctx, builder).await?;
+            }
         }
     }
     Ok(())
